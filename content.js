@@ -193,35 +193,39 @@ function createReviewBox(thumbnails, shorts) {
 
     });
 
- shorts.forEach((short, index) => {
-        const container = document.createElement('div');
-        container.style.display = 'flex';
-        container.style.alignItems = 'center';
-        container.style.marginBottom = '10px';
-        if (index !== short.length - 1) {
-            container.style.borderBottom = '1px solid lightgrey';
-        }
-        container.style.paddingBottom = '10px';
+ // Populate the Shorts content
+// Populate the Shorts content
+shorts.forEach((short) => {
+    const container = document.createElement('div');
+    container.style.marginBottom = '10px';
+    if (short !== shorts[shorts.length - 1]) {
+        container.style.borderBottom = '1px solid lightgrey';
+    }
+    container.style.paddingBottom = '10px';
 
-        const shrt = document.createElement('shrt');
-        shrt.src = short.short_url;  
-        shrt.setAttribute('data-id', short.id);
-        shrt.setAttribute('discord_channel_id', short.discord_channel_id);
-        shrt.setAttribute('discord_thread_id', short.discord_thread_id);
-        shrt.setAttribute('discord_message_id', short.discord_message_id);
-        shrt.style.display = 'block';
-        shrt.width = 120;
-        shrt.style.marginRight = '15px';
-        shrt.style.borderRadius = '5px';
-        shrt.style.cursor = 'pointer';
-        shrt.className = 'short-url';
-        shrt.setAttribute('data-src', short.short_url);
-        shrt.onclick = function () {
-            viewShortFullscreen(short.short_url, index, shorts); 
-        };
+    // Create a link element with the video title as its text
+    const titleLink = document.createElement('a');
+    titleLink.href = short.shorts_url;; // Assuming the URL property is named 'video_url'
+    titleLink.innerText = short.video_title || "No Title Available"; // Display the video title or a default message
+    titleLink.target = '_blank'; // Open the link in a new tab
+    titleLink.style.flexGrow = '1';
+    titleLink.style.fontFamily = "YouTube Sans, sans-serif";
+    titleLink.style.fontSize = '15px';
+    titleLink.style.color = '#007BFF'; // Give it a blue color to indicate it's a clickable link
+    titleLink.style.textDecoration = 'none'; // Remove the underline
+    titleLink.onclick = function(event) {
+    event.preventDefault(); // Prevent the default link behavior
+    viewShortFullscreen(short.shorts_url);
+    };
 
-        shortsContent.appendChild(container);
-    });
+    // Append the title link to the container
+    container.appendChild(titleLink);
+
+    // Append the container to the shortsContent
+    shortsContent.appendChild(container);
+});
+
+
 
  // Append content containers to the review box
     reviewBox.appendChild(thumbnailsContent);
@@ -342,11 +346,91 @@ function viewImageFullscreen(imageUrl, index, thumbnails) {
        fullscreenDiv.appendChild(buttonContainer);
        document.body.appendChild(fullscreenDiv);
 
-       fullscreenDiv.addEventListener('click', function (event) {
-       event.stopPropagation();  // Stop the event from propagating to the document
-       fullscreenDiv.remove();
+       fullscreenDiv.addEventListener('click', function(event) {
+        event.stopPropagation();  // Stop the event from propagating to the document
+        fullscreenDiv.remove();
+    });
+
+}
+
+function viewShortFullscreen(driveUrl, short) {
+    // Extract the FILE_ID from the Google Drive URL
+    const fileIdMatch = driveUrl.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+    if (!fileIdMatch) {
+        console.error("Invalid Google Drive URL:", driveUrl);
+        return;
+    }
+    const fileId = fileIdMatch[1];
+
+    const fullscreenDiv = document.createElement('div');
+    fullscreenDiv.style.position = 'fixed';
+    fullscreenDiv.style.top = '0';
+    fullscreenDiv.style.left = '0';
+    fullscreenDiv.style.width = '100vw';
+    fullscreenDiv.style.height = '100vh';
+    fullscreenDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    fullscreenDiv.style.zIndex = '2000';
+    fullscreenDiv.style.display = 'flex';
+    fullscreenDiv.style.justifyContent = 'center';
+    fullscreenDiv.style.alignItems = 'center';
+    fullscreenDiv.id = 'fullscreenDiv';
+
+    const iframe = document.createElement('iframe');
+    iframe.src = `https://drive.google.com/file/d/${fileId}/preview`;
+    iframe.style.width = '90%';  // Adjust as needed
+    iframe.style.height = '90%'; // Adjust as needed
+    iframe.frameBorder = '0';    // Remove the border
+    iframe.allowFullscreen = true;
+
+    const approveBtn = document.createElement('button');
+    approveBtn.innerText = '✔';
+    approveBtn.style.backgroundColor = 'green';
+    approveBtn.style.color = 'white';
+    approveBtn.style.marginBottom = '10px';
+    approveBtn.style.border = 'none';
+    approveBtn.style.padding = '5px 10px';
+    approveBtn.style.borderRadius = '4px';
+    approveBtn.style.fontSize = '20px';
+    approveBtn.onclick = function(event) {
+        event.stopPropagation();
+        console.log(driveUrl + ' approved');
+        updateShortStatus(short.id, 'approved'); // Call the function to update the short status
+    };
+
+    const reviseBtn = document.createElement('button');
+    reviseBtn.innerText = '✖';
+    reviseBtn.style.backgroundColor = 'red';
+    reviseBtn.style.color = 'white';
+    reviseBtn.style.border = 'none';
+    reviseBtn.style.padding = '5px 10px';
+    reviseBtn.style.borderRadius = '4px';
+    reviseBtn.style.fontSize = '20px';
+    reviseBtn.onclick = function(event) {
+        event.stopPropagation();
+        const comment = prompt('Enter your revision request:', '');
+        if (comment) {
+            console.log('Revision for ' + driveUrl + ':', comment);
+            updateShortStatus(short.id, 'revised', comment); // Call the function to update the short status with a comment
+        }
+    };
+
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.flexDirection = 'column';
+    buttonContainer.style.alignItems = 'flex-end';
+
+    buttonContainer.appendChild(approveBtn);
+    buttonContainer.appendChild(reviseBtn);
+
+    fullscreenDiv.appendChild(iframe); // Append the iframe first
+    fullscreenDiv.appendChild(buttonContainer); // Then append the buttons
+    document.body.appendChild(fullscreenDiv);
+
+    fullscreenDiv.addEventListener('click', function() {
+        fullscreenDiv.remove();
     });
 }
+
 
 function updateThumbnailStatus(thumbnailId, status, revisionComment = null) {
     const formData = new URLSearchParams();
