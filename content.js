@@ -38,9 +38,7 @@ function fetchThumbnailsByYouTubeID(youtubeChannelID) {
         });
 }
 
-
-
-function fetchShortsByYouTubeID(youtubeChannelID) {
+/*function fetchShortsByYouTubeID(youtubeChannelID) {
     return fetch(`https://adloxs.marvelcrm.com/wp-content/plugins/adloxs/files/test.php?action=fetchShortsByYouTubeID&youtube_channel_id=${youtubeChannelID}`)
         .then(response => response.json())
         .then(shorts => {
@@ -49,13 +47,9 @@ function fetchShortsByYouTubeID(youtubeChannelID) {
             return shorts;
         })
         .catch(error => {
-            console.error("Error fetching shorts by YouTube ID:", error);
-        });       
-}
-
-fetchShortsByYouTubeID()
-
-
+            console.error("Error fetching s by YouTube ID:", error);
+        });
+}*/
 
 function addReviewButton() {
     const existingButton = document.querySelector('ytcp-home-button');
@@ -64,18 +58,18 @@ function addReviewButton() {
         reviewBtn.innerText = 'Review';
         reviewBtn.className = 'reviewButton';
         reviewBtn.style.backgroundColor = 'red';
-        reviewBtn.style.color = 'white';
-        reviewBtn.style.height = '25px';
-        reviewBtn.style.padding = '0 5px';
-        reviewBtn.style.borderRadius = '5px';
-        reviewBtn.style.marginTop = '7px';
-        reviewBtn.style.border = 'none';
+        reviewBtn.style.color = 'white';        // Modify the button size, round the edges, move it down, and remove the border
+        reviewBtn.style.height = '25px';           // Set the height. Adjust as needed.
+        reviewBtn.style.padding = '0 5px';         // Reduce padding to make button smaller overall. Adjust as needed.
+        reviewBtn.style.borderRadius = '5px';      // Rounded edges. Adjust for more or less rounding.
+        reviewBtn.style.marginTop = '7px';         // Move the button down slightly. Adjust as needed.
+        reviewBtn.style.border = 'none';  
 
         reviewBtn.addEventListener('click', function (e) {
             e.stopPropagation();
             if (reviewBoxVisible) {
-                const existingWrapper = document.getElementById('adloxsReviewBoxWrapper');
-                if (existingWrapper) existingWrapper.remove();
+                const existingReviewBox = document.querySelector('.reviewBoxClass');
+                if (existingReviewBox) existingReviewBox.remove();
                 reviewBoxVisible = false;
             } else {
                 // Fetch thumbnails from the PHP endpoint
@@ -86,7 +80,6 @@ function addReviewButton() {
                 }).catch(error => {
                     console.error("Error fetching thumbnails:", error);
                 });
-                // Note: You've commented out the fetchShortsByYouTubeID function. If you want to use it, you can uncomment it.
             }
         });
 
@@ -94,62 +87,30 @@ function addReviewButton() {
     }
 }
 
-
 function createReviewBox(thumbnails) {
-     // Create a wrapper for the entire component (tabs + reviewBox)
-    const wrapper = document.createElement('div');
-    wrapper.style.position = 'fixed';
-    wrapper.style.top = '72px';
-    wrapper.style.left = '20.5%';
-    wrapper.style.zIndex = '1000';
-    wrapper.id = 'adloxsReviewBoxWrapper';
-
-    // Create tab container
-    const tabContainer = document.createElement('div');
-    tabContainer.style.display = 'flex';
-    tabContainer.style.justifyContent = 'space-between';
-    tabContainer.style.marginBottom = '10px';
-
-    // Thumbnails tab
-    const thumbnailTab = document.createElement('div');
-    thumbnailTab.innerText = 'Thumbnails';
-    thumbnailTab.style.cursor = 'pointer';
-    thumbnailTab.style.padding = '5px';
-    thumbnailTab.style.borderBottom = '2px solid blue'; // Highlight by default
-    tabContainer.appendChild(thumbnailTab);
-
-    // Shorts tab
-    const shortsTab = document.createElement('div');
-    shortsTab.innerText = 'Shorts';
-    shortsTab.style.cursor = 'pointer';
-    shortsTab.style.padding = '5px';
-    tabContainer.appendChild(shortsTab);
-
-    wrapper.appendChild(tabContainer);
-
     const reviewBox = document.createElement('div');
     reviewBox.className = 'reviewBoxClass';
     reviewBox.id = 'adloxsReviewBox';
     reviewBox.style.width = '400px';
     reviewBox.style.border = '1px solid grey';
     reviewBox.style.padding = '10px';
-    /*reviewBox.style.position = 'fixed';
+    reviewBox.style.position = 'fixed';
     reviewBox.style.top = '72px';
-    reviewBox.style.left = '20.5%';*/
+    reviewBox.style.left = '20.5%';
     reviewBox.style.backgroundColor = '#fff';
-    reviewBox.style.zIndex = '1001';
+    reviewBox.style.zIndex = '1000';
     reviewBox.style.overflowY = 'auto';
 
-    const baseHeightPerThumbnail = 80;
-    const totalHeight = thumbnails.length * baseHeightPerThumbnail;
-    const maxHeight = window.innerHeight * 0.8;
-    reviewBox.style.height = Math.min(totalHeight, maxHeight) + 'px';
+    const baseHeightPerThumbnail = 80;  // Assume each thumbnail container needs about 150px. Adjust as needed.
+    const totalHeight = thumbnails.length * baseHeightPerThumbnail; // Use thumbnailInfo.length
+    const maxHeight = window.innerHeight * 0.8;  // Let's set a max height to 80% of the viewport height
+
+    reviewBox.style.height = Math.min(totalHeight, maxHeight) + 'px';  // Set the height based on thumbnail count but don't exceed maxHeight
 
     if (totalHeight > maxHeight) {
-        reviewBox.style.overflowY = 'auto';
-    }    
+        reviewBox.style.overflowY = 'auto';  // If the content exceeds the max height, make it scrollable
+    }
 
-    const thumbnailsContainer = document.createElement('div');
     thumbnails.forEach((thumbnail, index) => {
         const container = document.createElement('div');
         container.style.display = 'flex';
@@ -161,7 +122,7 @@ function createReviewBox(thumbnails) {
         container.style.paddingBottom = '10px';
 
         const img = document.createElement('img');
-        img.src = thumbnail.thumbnail_url;
+        img.src = thumbnail.thumbnail_url;  
         img.setAttribute('data-id', thumbnail.id);
         img.setAttribute('discord_channel_id', thumbnail.discord_channel_id);
         img.setAttribute('discord_thread_id', thumbnail.discord_thread_id);
@@ -174,11 +135,12 @@ function createReviewBox(thumbnails) {
         img.className = 'thumbnail-image';
         img.setAttribute('data-src', thumbnail.thumbnail_url);
         img.onclick = function () {
-            viewImageFullscreen(thumbnail.thumbnail_url, index, thumbnails);
+            viewImageFullscreen(thumbnail.thumbnail_url, index, thumbnails);  // Ensure you're using the correct property from the thumbnail object
         };
 
-        const desc = document.createElement('div');
-        desc.innerText = thumbnail.video_title || "No Title Available";
+
+         const desc = document.createElement('div');
+        desc.innerText = thumbnail.video_title || "No Title Available"; // This is where you can define what is displayed in description next to image
         desc.style.flexGrow = '1';
         desc.style.fontFamily = "YouTube Sans, sans-serif";
         desc.style.fontSize = '15px';
@@ -186,34 +148,11 @@ function createReviewBox(thumbnails) {
 
         container.appendChild(img);
         container.appendChild(desc);
-        thumbnailsContainer.appendChild(container);
-    });
-    reviewBox.appendChild(thumbnailsContainer);
-
-    const shortsContainer = document.createElement('div');
-    shortsContainer.style.display = 'none';
-    // TODO: Populate the shortsContainer with links to Google Drive.
-    reviewBox.appendChild(shortsContainer);
-
-    // Event listeners for tabs
-    thumbnailTab.addEventListener('click', function() {
-        shortsContainer.style.display = 'none';
-        thumbnailsContainer.style.display = 'block';
-        thumbnailTab.style.borderBottom = '2px solid blue';
-        shortsTab.style.borderBottom = 'none';
+        reviewBox.appendChild(container);
     });
 
-    shortsTab.addEventListener('click', function() {
-        thumbnailsContainer.style.display = 'none';
-        shortsContainer.style.display = 'block';
-        shortsTab.style.borderBottom = '2px solid blue';
-        thumbnailTab.style.borderBottom = 'none';
-    });
-     wrapper.appendChild(reviewBox);
-
-    return wrapper;
+    return reviewBox;
 }
-  
 
 function cycleToNextThumbnail(img, thumbnails) {
     if (thumbnails[currentThumbnailIndex + 1]) {
@@ -228,6 +167,7 @@ function cycleToNextThumbnail(img, thumbnails) {
         return null;
     }
 }
+
 
 
 function viewImageFullscreen(imageUrl, index, thumbnails) {
@@ -436,7 +376,7 @@ function injectStyles() {
 
 injectStyles(); // manually invoke the function
 
-/*document.addEventListener('click', function (event) {
+document.addEventListener('click', function (event) {
     const reviewBox = document.getElementById('adloxsReviewBox');
     const fullscreenDiv = document.getElementById('fullscreenDiv');
 
@@ -448,21 +388,7 @@ injectStyles(); // manually invoke the function
         reviewBox.remove();
         reviewBoxVisible = false;
     }
-});*/
-document.addEventListener('click', function (event) {
-    const wrapper = document.getElementById('adloxsReviewBoxWrapper');
-    const fullscreenDiv = document.getElementById('fullscreenDiv');
-
-    if (reviewBoxVisible && wrapper && 
-        !wrapper.contains(event.target) && 
-        !event.target.matches('.reviewButton') && 
-        (!fullscreenDiv || !fullscreenDiv.contains(event.target)) && 
-        !fullscreenClosed) {
-        wrapper.remove();
-        reviewBoxVisible = false;
-    }
 });
-
 document.addEventListener('click', function (event) {
     const reviewBox = document.getElementById('adloxsReviewBox');
     const fullscreenDiv = document.getElementById('fullscreenDiv');
