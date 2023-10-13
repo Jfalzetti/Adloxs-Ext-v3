@@ -3,7 +3,11 @@ console.log("content.js loaded");
 let fullscreenClosed = false;
 let reviewBoxVisible = false;
 let fullscreenClicked = false;
+let isFullscreenActive = false;
+let videoFullscreenClicked = false;
 let currentThumbnailIndex = 0;
+let allshorts = [];
+
 
 const url = window.location.href;
 const match = url.match(/channel\/(UC[^?\/]+)/);
@@ -43,7 +47,7 @@ function fetchShortsByYouTubeID(youtubeChannelID) {
         .then(response => response.json())
         .then(shorts => {
             console.log(shorts);
-            // Handle the thumbnails here
+            
             return shorts;
         })
         .catch(error => {
@@ -104,11 +108,13 @@ function createReviewBox(thumbnails, shorts) {
     reviewBox.style.zIndex = '1000';
     reviewBox.style.overflowY = 'auto';
 
-    const baseHeightPerThumbnail = 80;  // Assume each thumbnail container needs about 150px. Adjust as needed.
-    const totalHeight = thumbnails.length * baseHeightPerThumbnail; // Use thumbnailInfo.length
+    const baseHeightPerThumbnail = 40;  // Assume each thumbnail container needs about 150px. Adjust as needed.
+    const baseHeightPerShort = 40;  // Assume each short container needs about 40px. Adjust as needed.
+    const minHeight = 80;  // Minimum height to ensure tabs are visible. Adjust as needed.
+    const totalHeight = Math.max(minHeight, thumbnails.length * baseHeightPerThumbnail + shorts.length * baseHeightPerShort); // Calculate total height based on both thumbnails and shorts
     const maxHeight = window.innerHeight * 0.8;  // Let's set a max height to 80% of the viewport height
 
-    reviewBox.style.height = Math.min(totalHeight, maxHeight) + 'px';  // Set the height based on thumbnail count but don't exceed maxHeight
+    reviewBox.style.height = Math.min(totalHeight, maxHeight) + 'px';  // Set the height based on content count but don't exceed maxHeight
 
     if (totalHeight > maxHeight) {
         reviewBox.style.overflowY = 'auto';  // If the content exceeds the max height, make it scrollable
@@ -116,6 +122,8 @@ function createReviewBox(thumbnails, shorts) {
     // Create tabs container
     const tabsContainer = document.createElement('div');
     tabsContainer.className = 'tabsContainer';
+    tabsContainer.style.marginBottom = '20px';  // Adjust the value as needed
+
 
     // Create Thumbnails tab
     const thumbnailsTab = document.createElement('button');
@@ -193,46 +201,49 @@ function createReviewBox(thumbnails, shorts) {
 
     });
 
- // Populate the Shorts content
-// Populate the Shorts content
-shorts.forEach((short) => {
-    const container = document.createElement('div');
-    container.style.marginBottom = '10px';
-    if (short !== shorts[shorts.length - 1]) {
+    shorts.forEach((short) => {
+            const container = document.createElement('div');
+        container.style.marginBottom = '10px';
+            if (short !== shorts[shorts.length - 1]) {
         container.style.borderBottom = '1px solid lightgrey';
+        }
+        container.style.paddingBottom = '10px';
+
+            // Create a link element with the video title as its text
+            const titleLink = document.createElement('a');
+        titleLink.href = short.shorts_url;; // Assuming the URL property is named 'video_url'
+        titleLink.innerText = short.video_title || "No Title Available"; // Display the video title or a default message
+        titleLink.target = '_blank'; // Open the link in a new tab
+        titleLink.style.flexGrow = '1';
+        titleLink.style.fontFamily = "YouTube Sans, sans-serif";
+        titleLink.style.fontSize = '15px';
+        titleLink.style.color = '#007BFF'; // Give it a blue color to indicate it's a clickable link
+        titleLink.style.textDecoration = 'none'; // Remove the underline
+        titleLink.setAttribute('data-id', short.id);
+        titleLink.setAttribute('discord_channel_id', short.discord_channel_id);
+        titleLink.setAttribute('discord_thread_id', short.discord_thread_id);
+        titleLink.setAttribute('discord_message_id', short.discord_message_id);
+        titleLink.setAttribute('data-shorts-url', short.shorts_url);
+        titleLink.onclick = function(event) {
+        event.preventDefault(); // Prevent the default link behavior
+        viewShortFullscreen(short.shorts_url, shorts.indexOf(short), shorts);
+        };
+
+        // Append the title link to the container
+        container.appendChild(titleLink);
+
+        // Append the container to the shortsContent
+        shortsContent.appendChild(container);
+    });
+
+
+
+    // Append content containers to the review box
+        reviewBox.appendChild(thumbnailsContent);
+        reviewBox.appendChild(shortsContent);
+
+        return reviewBox;
     }
-    container.style.paddingBottom = '10px';
-
-    // Create a link element with the video title as its text
-    const titleLink = document.createElement('a');
-    titleLink.href = short.shorts_url;; // Assuming the URL property is named 'video_url'
-    titleLink.innerText = short.video_title || "No Title Available"; // Display the video title or a default message
-    titleLink.target = '_blank'; // Open the link in a new tab
-    titleLink.style.flexGrow = '1';
-    titleLink.style.fontFamily = "YouTube Sans, sans-serif";
-    titleLink.style.fontSize = '15px';
-    titleLink.style.color = '#007BFF'; // Give it a blue color to indicate it's a clickable link
-    titleLink.style.textDecoration = 'none'; // Remove the underline
-    titleLink.onclick = function(event) {
-    event.preventDefault(); // Prevent the default link behavior
-    viewShortFullscreen(short.shorts_url);
-    };
-
-    // Append the title link to the container
-    container.appendChild(titleLink);
-
-    // Append the container to the shortsContent
-    shortsContent.appendChild(container);
-});
-
-
-
- // Append content containers to the review box
-    reviewBox.appendChild(thumbnailsContent);
-    reviewBox.appendChild(shortsContent);
-
-    return reviewBox;
-}
 
 function cycleToNextThumbnail(img, thumbnails) {
     if (thumbnails[currentThumbnailIndex + 1]) {
@@ -251,7 +262,7 @@ function cycleToNextThumbnail(img, thumbnails) {
 
 
 function viewImageFullscreen(imageUrl, index, thumbnails) {
-    const fullscreenDiv = document.createElement('div');
+        const fullscreenDiv = document.createElement('div');
     fullscreenDiv.style.position = 'fixed';
     fullscreenDiv.style.top = '0';
     fullscreenDiv.style.left = '0';
@@ -264,7 +275,7 @@ function viewImageFullscreen(imageUrl, index, thumbnails) {
     fullscreenDiv.style.alignItems = 'center';
     fullscreenDiv.id = 'fullscreenDiv';
 
-    const img = document.createElement('img');
+        const img = document.createElement('img');
     img.src = imageUrl;
     img.src = thumbnails[index].thumbnail_url;
     img.style.maxWidth = '90%';
@@ -272,7 +283,7 @@ function viewImageFullscreen(imageUrl, index, thumbnails) {
     img.style.borderRadius = '20px';
     img.style.marginRight = '20px';
 
-    const approveBtn = document.createElement('button');
+        const approveBtn = document.createElement('button');
     approveBtn.innerText = '✔';
     approveBtn.style.backgroundColor = 'green';
     approveBtn.style.color = 'white';
@@ -282,6 +293,7 @@ function viewImageFullscreen(imageUrl, index, thumbnails) {
     approveBtn.style.borderRadius = '4px';  // Round the button corners
     approveBtn.style.fontSize = '20px';  // Increase the font size for visibility
     approveBtn.onclick = function (event) {
+        console.log("Approve button clicked");
         event.stopPropagation();
         console.log(imageUrl + ' approved');
         
@@ -303,7 +315,7 @@ function viewImageFullscreen(imageUrl, index, thumbnails) {
     }
 };
         
-    const reviseBtn = document.createElement('button');
+        const reviseBtn = document.createElement('button');
     reviseBtn.innerText = '✖';
     reviseBtn.style.backgroundColor = 'red';
     reviseBtn.style.color = 'white';
@@ -312,8 +324,9 @@ function viewImageFullscreen(imageUrl, index, thumbnails) {
     reviseBtn.style.borderRadius = '4px';  // Round the button corners
     reviseBtn.style.fontSize = '20px';  // Increase the font size for visibility
     reviseBtn.onclick = function (event) {
+        console.log("Revise button clicked");
     event.stopPropagation();
-    const comment = prompt('Enter your revision request:', '');
+        const comment = prompt('Enter your revision request:', '');
       if (comment) {
         console.log('Revision for ' + imageUrl + ':', comment);
             
@@ -346,14 +359,49 @@ function viewImageFullscreen(imageUrl, index, thumbnails) {
        fullscreenDiv.appendChild(buttonContainer);
        document.body.appendChild(fullscreenDiv);
 
+       isFullscreenActive = true;
+
        fullscreenDiv.addEventListener('click', function(event) {
+            console.log("Fullscreen div clicked");
         event.stopPropagation();  // Stop the event from propagating to the document
         fullscreenDiv.remove();
+
+       isFullscreenActive = false;
     });
 
 }
+let currentShortIndex = 0;
 
-function viewShortFullscreen(driveUrl, short) {
+function cycleToNextShort(iframe, shortsArray, btn) {
+    console.log("Shorts array:", shortsArray);
+    console.log("Current short index:", currentShortIndex); // Add this log
+    console.log("Total number of shorts:", shortsArray.length);  // Add this log
+
+    if (shortsArray[currentShortIndex + 1]) {
+        currentShortIndex++;
+        const nextShort = shortsArray[currentShortIndex];
+        btn.short = nextShort;
+        console.log ("ns"+nextShort);
+        const fileIdMatch = nextShort.shorts_url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+        if (fileIdMatch) {
+            const fileId = fileIdMatch[1];
+            iframe.src = `https://drive.google.com/file/d/${fileId}/preview`;
+            console.log("Cycling to next short:", iframe.src); // Add this log
+            return nextShort.shorts_url;
+        }
+    } else {
+        console.log("No more shorts to display"); // Add this log
+        const fullscreenDiv = document.getElementById('fullscreenDiv');
+        if (fullscreenDiv) {
+            fullscreenDiv.remove();
+        }
+        return null;
+    }
+}
+
+
+function viewShortFullscreen(driveUrl, index, shorts) {
+    allshorts = shorts;
     // Extract the FILE_ID from the Google Drive URL
     const fileIdMatch = driveUrl.match(/drive\.google\.com\/file\/d\/([^/]+)/);
     if (!fileIdMatch) {
@@ -379,7 +427,9 @@ function viewShortFullscreen(driveUrl, short) {
     iframe.src = `https://drive.google.com/file/d/${fileId}/preview`;
     iframe.style.width = '90%';  // Adjust as needed
     iframe.style.height = '90%'; // Adjust as needed
-    iframe.frameBorder = '0';    // Remove the border
+    
+    iframe.style.borderRadius = '20px';
+    iframe.style.marginRight = '20px';
     iframe.allowFullscreen = true;
 
     const approveBtn = document.createElement('button');
@@ -391,10 +441,22 @@ function viewShortFullscreen(driveUrl, short) {
     approveBtn.style.padding = '5px 10px';
     approveBtn.style.borderRadius = '4px';
     approveBtn.style.fontSize = '20px';
+    approveBtn.short = shorts[index];
     approveBtn.onclick = function(event) {
         event.stopPropagation();
+        var short = this.short;
+        console.log(this.short);
         console.log(driveUrl + ' approved');
+
+        /*const associatedShortElement = document.querySelector(`[data-shorts-url="${driveUrl}"]`);*/
+        associatedShortElement.closest('div').classList.add('revised');
+        const shortId = associatedShortElement.getAttribute('data-id');
+
         updateShortStatus(short.id, 'approved'); // Call the function to update the short status
+        const newDriveUrl = cycleToNextShort(iframe, allshorts, approveBtn);
+        if (newDriveUrl) {
+            driveUrl = newDriveUrl;
+        }    
     };
 
     const reviseBtn = document.createElement('button');
@@ -405,13 +467,20 @@ function viewShortFullscreen(driveUrl, short) {
     reviseBtn.style.padding = '5px 10px';
     reviseBtn.style.borderRadius = '4px';
     reviseBtn.style.fontSize = '20px';
+    reviseBtn.short = shorts[index];
     reviseBtn.onclick = function(event) {
         event.stopPropagation();
         const comment = prompt('Enter your revision request:', '');
         if (comment) {
+            var short = this.short;
+            console.log(this.short);
             console.log('Revision for ' + driveUrl + ':', comment);
             updateShortStatus(short.id, 'revised', comment); // Call the function to update the short status with a comment
-        }
+            const newDriveUrl = cycleToNextShort(iframe, allshorts, reviseBtn);
+            if (newDriveUrl) {
+                driveUrl = newDriveUrl;
+            }
+        }   
     };
 
     const buttonContainer = document.createElement('div');
@@ -427,6 +496,7 @@ function viewShortFullscreen(driveUrl, short) {
     document.body.appendChild(fullscreenDiv);
 
     fullscreenDiv.addEventListener('click', function() {
+        videoFullscreenClicked = true;  // Set the flag when the video fullscreen is clicked
         fullscreenDiv.remove();
     });
 }
@@ -491,8 +561,64 @@ function updateThumbnailStatus(thumbnailId, status, revisionComment = null) {
     });
 }
 
+function updateShortStatus(shortId, status, revisionComment = null) {
+    const formData = new URLSearchParams();
+    formData.append('short_id', shortId);
+    formData.append('status', status);
+    if (revisionComment) {
+        formData.append('revision_comment', revisionComment);
+    }
 
+    // Assuming the PHP endpoint for updating short status is similar to the thumbnail one
+    fetch('https://adloxs.marvelcrm.com/wp-content/plugins/adloxs/files/test.php?action=updateShortStatus', {
+        method: 'POST',
+        body: formData
+    })
+        .then(response => response.json())
+        .then(data => {
+            console.log(data.message);
 
+            // Retrieve associated thumbnail attributes
+            const associatedShortElement = document.querySelector(`[data-id="${shortId}"]`);
+            if (!associatedShortElement) {
+                console.error("Thumbnail element not found for thumbnailId:", shortId);
+                return;
+            }
+           
+            const channelId = associatedShortElement.getAttribute('discord_channel_id');
+            const threadId = associatedShortElement.getAttribute('discord_thread_id');
+            const messageId = associatedShortElement.getAttribute('discord_message_id');
+            /*const driveUrl = associatedShortElement.getAttribute('data-shorts-url');*/
+
+            // Construct JSON data
+            const requestData = {
+                threadId: String(threadId),
+                messageId: String(messageId),
+                /*driveUrl: driveUrl,*/
+                status: status
+            };
+
+            if (status === 'revised' && revisionComment) {
+                requestData.revisionComment = revisionComment;
+            }
+            console.log("Sending data:", requestData);
+            // Send JSON request to Discord update PHP script
+            return fetch('https://adloxs.marvelcrm.com/wp-content/plugins/adloxs/files/discordupdateshorts.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            });
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(data.message);
+        })
+        .catch(error => {
+            console.error("Error:", error);
+        });
+}
 function injectStyles() {
     console.log("Injecting styles...");
     const styles = `
@@ -542,6 +668,11 @@ function injectStyles() {
         .tabButton.active {
         background-color: #ddd;
         }
+        
+        .tabsContainer {
+        margin-bottom: 20px; /* Adjust the value as needed */
+        }
+
     }
     `;
 
@@ -554,19 +685,46 @@ function injectStyles() {
 
 injectStyles(); // manually invoke the function
 
-document.addEventListener('click', function (event) {
+/*document.addEventListener('click', function (event) {
     const reviewBox = document.getElementById('adloxsReviewBox');
     const fullscreenDiv = document.getElementById('fullscreenDiv');
 
     if (reviewBoxVisible && reviewBox && 
         !reviewBox.contains(event.target) && 
-        !event.target.matches('.reviewButton') && 
+        !event.target.matches('.reviewButton') &&         
         (!fullscreenDiv || !fullscreenDiv.contains(event.target)) && 
         !fullscreenClosed) {
         reviewBox.remove();
         reviewBoxVisible = false;
     }
+});*/
+/*document.addEventListener('click', function (event) {
+    const reviewBox = document.getElementById('adloxsReviewBox');
+
+    if (reviewBoxVisible && reviewBox && 
+        !reviewBox.contains(event.target) && 
+        !event.target.matches('.reviewButton') && 
+        !isFullscreenActive) {  // Check the flag here
+        reviewBox.remove();
+        reviewBoxVisible = false;
+    }
+});*/
+document.addEventListener('click', function (event) {
+    const reviewBox = document.getElementById('adloxsReviewBox');
+
+    setTimeout(() => {
+        if (reviewBoxVisible && reviewBox && 
+            !reviewBox.contains(event.target) && 
+            !event.target.matches('.reviewButton') && 
+            !isFullscreenActive && 
+            !videoFullscreenClicked) {  // Check the new flag here
+            reviewBox.remove();
+            reviewBoxVisible = false;
+        }
+        videoFullscreenClicked = false;  // Reset the flag after checking
+    }, 1);
 });
+
 
 /*document.addEventListener('click', function (event) {
     const reviewBox = document.getElementById('adloxsReviewBox');
@@ -587,4 +745,3 @@ document.addEventListener('DOMContentLoaded', addReviewButton);
 
 const reviewButtonObserver = new MutationObserver(addReviewButton);
 reviewButtonObserver.observe(document.body, { childList: true, subtree: true });
-
